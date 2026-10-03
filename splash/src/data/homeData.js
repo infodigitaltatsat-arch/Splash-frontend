@@ -8,6 +8,7 @@ import gheeImage from "../assets/products/ghee.jpg";
 import butterImage from "../assets/products/butter.jpg";
 import buttermilkImage from "../assets/products/butterMilk.jpg";
 import flavouredMilkImage from "../assets/products/flavourMilk.webp";
+import categoryOtherImage from "../assets/products/categoryother.jpeg";
 
 export const banners = [
   {
@@ -63,7 +64,7 @@ export const categories = [
   {
     id: "more",
     name: "More",
-    image: "/images/categories/more.png",
+    image: categoryOtherImage,
   },
 ];
 
