@@ -1,11 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { IoCheckmark, IoCarOutline } from "react-icons/io5";
 
 const OrderSuccess = () => {
     const navigate = useNavigate();
+    const location = useLocation();
 
-    const orderId = "ZG102345"
-    const deliveryTime = "Today, 5:00PM - 7:00 PM"
+    const orderId = location.state?.orderId || "ZG102345"
+    const deliveryTime = location.state?.deliveryTime || "Today, 5:00PM - 7:00 PM"
 
     return (
         <main className="min-h-screen">

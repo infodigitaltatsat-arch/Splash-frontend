@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState,useEffect } from "react";
 import {useNavigate} from 'react-router-dom';
 import { useCart } from "../../context/CartContext";
 
@@ -10,9 +10,36 @@ import BestSellerSection from "../../components/home/BestSellerSection";
 import BottomNav from "../../components/home/BottomNav";
 
 import { bestSellers } from "../../data/homeData";
+import { getProducts } from "../../api/productApi";
 
 
 const Home = () =>{
+
+
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("")
+
+    useEffect(()=>{
+        const fetchProducts = async ()=>{
+            try{
+                setLoading(true);
+
+                const response = await getProducts();
+                setProducts(response.data)
+            }
+            catch(error){
+                setError(error.response?.data?.message || "Failed to load products");
+            }
+            finally{
+                setLoading(false)
+            }
+        }
+        fetchProducts();
+    },[])
+
+
+
     const [search, setSearch] = useState("");
     const [wishlist, setWishlist] = useState([]);
     const { cart, addToCart } = useCart();

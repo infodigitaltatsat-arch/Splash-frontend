@@ -7,13 +7,28 @@ import BG from '../../assets/Main/Login-BG.png'
 const Login =()=>{
     const navigate = useNavigate();
     const [mobile,setMobile] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
     
     const handleGetOtp = (e) =>{
 
         e.preventDefault();
-// backend will be connected later
-        if(mobile.length === 10){
-            navigate('/home')
+        if(!mobile || mobile.length !== 10){
+            setError("Please enter a valid 10-digit mobile number.");
+            return
+        }
+
+        try{
+            setLoading(true);
+            setError("");
+            localStorage.setItem('loginMobile',mobile);
+            navigate('/otp')
+        }
+        catch{
+            setError("Unable to continue. Please try again.")
+        }
+        finally{
+            setLoading(false)
         }
     };
 
@@ -68,11 +83,13 @@ const Login =()=>{
                         className="min-w-0 flex-1 bg-transparent px-4 text-[17px] outline-none placeholder:text-gray-400"/>
                     </div>
 
+                    {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
+
                     {/* get otp */}
 <button
 type="submit"
-disabled={mobile.length !== 10}
-className="mt-5 h-[58px] w-full rounded-2xl bg-[#07883F] text-[18px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50">Get OTP</button>
+disabled={mobile.length !== 10 || loading}
+className="mt-5 h-[58px] w-full rounded-2xl bg-[#07883F] text-[18px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50">{loading ? "Continuing..." : "Get OTP"}</button>
 
                 </form>
 

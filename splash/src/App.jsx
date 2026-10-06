@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import Splash from './pages/Splash/Splash';
 import Login from './pages/Login/Login';
+import Otp from './pages/Otp/Otp';
 import Home from "./pages/Home/Home";
 import Categories from "./pages/Categories/Categories";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -12,12 +13,14 @@ import Orders from "./pages/Orders/Orders";
 import Address from "./pages/Address/Address";
 import OrderSuccess from "./pages/OrderSuccess/OrderSuccess";
 import OrderTracking from "./pages/OrderTracking/OrderTracking";
+import Admin from "./pages/Admin/Admin";
 
 const App = () => {
   return (
    <Routes>
     <Route path="/" element={<Splash/>}/>
      <Route path="/login" element={<Login/>}/>
+     <Route path="/otp" element={<Otp/>}/>
       <Route path="/home" element={<Home/>}/>
        <Route path="/categories" element={<Categories/>}/>
         <Route path="/profile" element={<PlaceholderPage title="Profile" active="profile"/>}/>
@@ -34,6 +37,8 @@ const App = () => {
           <Route path="/order-success" element={<OrderSuccess/>}/>
 
           <Route path="/orders/:orderId" element={<OrderTracking/>}/>
+
+          <Route path="/admin" element={<Admin/>}/>
 
 
      {/* temporary */}

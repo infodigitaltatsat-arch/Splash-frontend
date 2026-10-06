@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   IoChevronBack,
@@ -8,6 +8,8 @@ import {
   IoCardOutline,
 } from "react-icons/io5";
 import { useCart } from "../../context/CartContext";
+import { getAddresses } from "../../api/addressApi";
+import { createOrder } from "../../api/orderApi";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -19,6 +21,11 @@ const Checkout = () => {
   } = useCart();
 
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [error, setError] = useState("");
 
   const deliveryCharges = cart.length > 0 ? 30 : 0;
 
@@ -27,33 +34,86 @@ const Checkout = () => {
   const totalAmount =
     itemTotal + deliveryCharges - discount;
 
-  const selectedAddress = {
-    type: "Home",
-    address: "House No. 123, Green Park, Karnal, Haryana - 132001",
-  };
+  const selectedAddress = addresses.find(
+    (address) => address._id === selectedAddressId
+  );
 
   const deliveryTime = "Today, 5:00 PM - 7:00 PM";
 
-  const handlePlaceOrder = () => {
-    // Demo only.
-    // Real order creation/payment will be connected with backend later.
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      const token = localStorage.getItem("token");
 
-    const order = {
-      items: cart,
-      address: selectedAddress,
-      deliveryTime,
-      paymentMethod,
-      itemTotal,
-      deliveryCharges,
-      discount,
-      totalAmount,
+      if (!token) {
+        setLoadingAddresses(false);
+        setError("Please login to continue checkout.");
+        return;
+      }
+
+      try {
+        setLoadingAddresses(true);
+        setError("");
+
+        const response = await getAddresses();
+        const savedAddresses = response.data || [];
+        const defaultAddress =
+          savedAddresses.find((address) => address.isDefault) ||
+          savedAddresses[0];
+
+        setAddresses(savedAddresses);
+        setSelectedAddressId(defaultAddress?._id || "");
+      } catch (error) {
+        console.error("Failed to fetch checkout addresses:", error);
+        setError(
+          error.response?.data?.message ||
+          "Failed to load delivery addresses"
+        );
+      } finally {
+        setLoadingAddresses(false);
+      }
     };
 
-    console.log("Demo Order:", order);
+    fetchAddresses();
+  }, []);
 
-    clearCart();
+  const formatAddress = (address) => {
+    if (!address) return "";
 
-    navigate("/order-success");
+    return `${address.addressLine}, ${address.city}, ${address.state} - ${address.pincode}`;
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!selectedAddressId) {
+      setError("Please select a delivery address.");
+      return;
+    }
+
+    try {
+      setPlacingOrder(true);
+      setError("");
+
+      const response = await createOrder({
+        addressId: selectedAddressId,
+        paymentMethod,
+      });
+
+      await clearCart();
+
+      navigate("/order-success", {
+        state: {
+          orderId: response.data.order?._id,
+          deliveryTime,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to place order:", error);
+      setError(
+        error.response?.data?.message ||
+        "Failed to place order. Please try again."
+      );
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   return (
@@ -89,11 +149,15 @@ const Checkout = () => {
 
             <div className="min-w-0 flex-1">
               <h3 className="text-[19px] font-semibold">
-                {selectedAddress.type}
+                {loadingAddresses
+                  ? "Loading..."
+                  : selectedAddress?.type || "No address selected"}
               </h3>
 
               <p className="mt-1 text-[15px] leading-5 text-gray-500">
-                {selectedAddress.address}
+                {selectedAddress
+                  ? formatAddress(selectedAddress)
+                  : "Add a delivery address to continue"}
               </p>
             </div>
 
@@ -106,6 +170,28 @@ const Checkout = () => {
 
           </div>
         </section>
+
+        {addresses.length > 1 && (
+          <section className="mt-4 space-y-3">
+            {addresses.map((address) => (
+              <button
+                key={address._id}
+                type="button"
+                onClick={() => setSelectedAddressId(address._id)}
+                className={`w-full rounded-2xl border p-4 text-left ${
+                  selectedAddressId === address._id
+                    ? "border-[#07883F] bg-[#EAF8F0]"
+                    : "border-gray-100 bg-white"
+                }`}
+              >
+                <p className="font-semibold">{address.type}</p>
+                <p className="mt-1 text-sm leading-5 text-gray-500">
+                  {formatAddress(address)}
+                </p>
+              </button>
+            ))}
+          </section>
+        )}
 
         {/* Delivery Time */}
         <section className="mt-7">
@@ -259,13 +345,24 @@ const Checkout = () => {
 
         </section>
 
+        {error && (
+          <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+            {error}
+          </p>
+        )}
+
         {/* Place Order */}
         <button
           onClick={handlePlaceOrder}
-          disabled={cart.length === 0}
+          disabled={
+            cart.length === 0 ||
+            loadingAddresses ||
+            placingOrder ||
+            !selectedAddressId
+          }
           className="mt-7 h-[58px] w-full rounded-2xl bg-[#07883F] text-[18px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Place Order
+          {placingOrder ? "Placing Order..." : "Place Order"}
         </button>
 
       </div>

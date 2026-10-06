@@ -1,67 +1,166 @@
-import { createContext, useContext, useState } from "react";
-
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+    getCart,
+    addToCartApi,
+    updateCartApi,
+    removeFromCartApi,
+} from "../api/cartApi";
 
 const CartContext = createContext();
-export const CartProvider = ({children})=>{
+
+export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);
 
-    const addToCart = (product,quantity=1)=>{
-        setCart((current)=>{
-            const existing = current.find((item)=>item.id===product.id);
-            if(existing){
-                return current.map((item)=>item.id===product.id?{...item,quantity:item.quantity+quantity,}:item);
+    useEffect(() => {
+        const loadCart = async () => {
+            const token = localStorage.getItem("token");
+
+            if (!token) return;
+
+            try {
+                const response = await getCart();
+
+                const items = response.data.items.map((item) => ({
+                    ...item.product,
+                    id: item.product._id,
+                    quantity: item.quantity,
+                }));
+
+                setCart(items);
+            } catch (error) {
+                console.error("Failed to load cart:", error);
+            }
+        };
+
+        loadCart();
+    }, []);
+
+    const addToCart = async (product, quantity = 1) => {
+        try {
+            const response = await addToCartApi(
+                product._id || product.id,
+                quantity
+            );
+
+            const items = response.data.cart.items.map((item) => ({
+                ...item.product,
+                id: item.product._id,
+                quantity: item.quantity,
+            }));
+
+            setCart(items);
+        } catch (error) {
+            console.error("Failed to add product to cart:", error);
+        }
+    };
+
+    const increaseQuantity = async (productId) => {
+        const item = cart.find((item) => item.id === productId);
+
+        if (!item) return;
+
+        try {
+            const response = await updateCartApi(
+                productId,
+                item.quantity + 1
+            );
+
+            const items = response.data.cart.items.map((item) => ({
+                ...item.product,
+                id: item.product._id,
+                quantity: item.quantity,
+            }));
+
+            setCart(items);
+        } catch (error) {
+            console.error("Failed to increase quantity:", error);
+        }
+    };
+
+    const decreaseQuantity = async (productId) => {
+        const item = cart.find((item) => item.id === productId);
+
+        if (!item) return;
+
+        if (item.quantity === 1) {
+            await removeFromCart(productId);
+            return;
+        }
+
+        try {
+            const response = await updateCartApi(
+                productId,
+                item.quantity - 1
+            );
+
+            const items = response.data.cart.items.map((item) => ({
+                ...item.product,
+                id: item.product._id,
+                quantity: item.quantity,
+            }));
+
+            setCart(items);
+        } catch (error) {
+            console.error("Failed to decrease quantity:", error);
+        }
+    };
+
+    const removeFromCart = async (productId) => {
+        try {
+            const response = await removeFromCartApi(productId);
+
+            const items = response.data.cart.items.map((item) => ({
+                ...item.product,
+                id: item.product._id,
+                quantity: item.quantity,
+            }));
+
+            setCart(items);
+        } catch (error) {
+            console.error("Failed to remove product:", error);
+        }
+    };
+
+    const clearCart = async () => {
+        try {
+            const currentCart = [...cart];
+
+            for (const item of currentCart) {
+                await removeFromCartApi(item.id);
             }
 
-            return[
-                ...current,
-                {
-                    ...product,
-                    quantity,
-                }
-            ]
-        })
-    };
-
-
-    const increaseQuantity = (productId) =>{
-        setCart((current)=>current.map((item)=>item.id===productId ? {...item,quantity:item.quantity + 1}:item))
-    };
-
-    const decreaseQuantity = (productId) =>{
-        setCart((current)=>current.map((item)=>item.id===productId ? {...item, quantity:item.quantity - 1} : item).filter((item)=>item.quantity>0))
-    };
-
-    const removeFromCart = (productId) =>{
-        setCart((current)=>current.filter((item)=>item.id !== productId));
-    };
-
-    const clearCart = () =>{
-        setCart([])
+            setCart([]);
+        } catch (error) {
+            console.error("Failed to clear cart:", error);
+        }
     };
 
     const totalItems = cart.reduce(
-        (total,item)=>total+item.quantity,0
+        (total, item) => total + item.quantity,
+        0
     );
 
     const itemTotal = cart.reduce(
-        (total, item) => total+item.price*item.quantity,0
-    )
+        (total, item) => total + item.price * item.quantity,
+        0
+    );
 
-    return(
+    return (
         <CartContext.Provider
-        value={{
-            cart,
-            addToCart,
-            increaseQuantity,
-            decreaseQuantity,
-            removeFromCart,
-            clearCart,
-            totalItems,
-            itemTotal
-        }}>
+            value={{
+                cart,
+                addToCart,
+                increaseQuantity,
+                decreaseQuantity,
+                removeFromCart,
+                clearCart,
+                totalItems,
+                itemTotal,
+            }}
+        >
             {children}
         </CartContext.Provider>
-    )
-}
+    );
+};
 
 export const useCart = () => useContext(CartContext);

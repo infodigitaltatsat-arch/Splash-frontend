@@ -8,8 +8,8 @@ import {
 
 import BottomNav from '../../components/home/BottomNav'
 
-import { useMemo, useState } from 'react'
-import { productData } from '../../data/productData'
+import { useEffect, useMemo, useState } from 'react'
+import { getProductByCategory } from '../../api/productApi'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 
@@ -30,11 +30,35 @@ const Products = () => {
     const [wishList, setWishList] = useState([]);
     const { cart, addToCart, increaseQuantity, decreaseQuantity } = useCart();
 
-    const products = productData[category] || [];
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(()=>{
+        const fetchProducts = async () =>{
+            try{
+                setLoading(true);
+                setError("");
+
+                const response = await getProductByCategory(
+                    category.charAt(0).toUpperCase()+category.slice(1)
+                );
+
+                setProducts(response.data);
+            }
+            catch(error){
+                console.error("Failed to fetch products:", error);
+                setError(error.response?.data?.message || "Failed to load products")
+            } finally{
+                setLoading(false)
+            }
+        };
+        fetchProducts();
+    },[category])
 
     const filteredProducts = useMemo(() => {
         if (activeFilter === "all") { return products; }
-        return products.filter((product) => product.type === activeFilter);
+        return products.filter((product) => product.subCategory === activeFilter);
     }, [products, activeFilter]);
 
     const toggleWishlist = (productId) => {
@@ -99,15 +123,30 @@ const Products = () => {
 
                 {/* products */}
                 <section className="space-y-3 px-4 pt-2 pb-8">
-                    {filteredProducts.map((product) => {
-                        const quantity = getCartQuantity(product.id);
-                        const liked = wishList.includes(product.id);
+                    {loading && (
+                        <p className='py-10 text-center text-gray-500'>
+                            Loading products...
+                        </p>
+                    )}
+                    {!loading && error && (
+                        <p className='py-10 text-center text-red-500'>
+                            {error}
+                        </p>
+                    )}
+                    {!loading && !error && filteredProducts.length === 0 && (
+                        <p className='py-10 text-center text-gray-500'>
+                            No products found.
+                        </p>
+                    )}
+                    {!loading && !error && filteredProducts.map((product) => {
+                        const quantity = getCartQuantity(product._id);
+                        const liked = wishList.includes(product._id);
 
                         return (
                             <article key={product.id} className="flex min-h-[155px] items-center gap-4 rounded-2xl border border-gray-100 bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
 
                                 {/* products image */}
-                                <button onClick={() => navigate(`/product/${product.id}`)}
+                                <button onClick={() => navigate(`/product/${product._id}`)}
                                     className="h-[125px] w-[125px] shrink-0 overflow-hidden rounded-2xl bg-gray-50">
                                     <img src={product.image} className="h-full w-full object-cover" />
                                 </button>
@@ -116,24 +155,25 @@ const Products = () => {
                                 {/* product info */}
                                 <div className="relative flex min-w-0 flex-1 flex-col self-stretch py-2">
                                     {/* wishlist */}
-                                    <button onClick={() => toggleWishlist(product.id)}
+                                    <button onClick={() => toggleWishlist(product._id)}
                                         className="absolute right-0 top-1">
                                         {liked ? (<IoHeart size={20} className="text-red-500" />) : (<IoHeartOutline size={20} className="text-gray-700" />)}
                                     </button>
 
                                     <h2 className="pr-8 text-[17px] font-bold leading-6">{product.name}</h2>
-                                    <p className="mt-1 text-[16px] text-gray-500">{product.quantity}</p>
+                                    <p className="mt-1 text-[16px] text-gray-500">{product.unit}</p>
 
                                     <div className="mt-auto flex items-end justify-between gap-2">
                                         <span className='text-[21px] font-bold'>₹{product.price}</span>
 
                                         {quantity === 0 ? (
-                                            <button onClick={() => addToCart(product)} className="rounded-xl bg-[#07883F] px-7 py-3 text-[16px] font-semibold text-white">Add</button>
+                                            <button onClick={() => addToCart({...product,
+                                                id: product._id,})} className="rounded-xl bg-[#07883F] px-7 py-3 text-[16px] font-semibold text-white">Add</button>
                                         ) : (
                                             <div className="flex h-11 items-center overflow-hidden rounded-xl border border-[#07883F]">
-                                                <button onClick={() => decreaseQuantity(product.id)} className="flex h-full w-11 items-center justify-center text-xl text-[#07883F]">-</button>
+                                                <button onClick={() => decreaseQuantity(product._id)} className="flex h-full w-11 items-center justify-center text-xl text-[#07883F]">-</button>
                                                 <span className="flex w-9 justify-center font-semibold">{quantity}</span>
-                                                <button onClick={() => increaseQuantity(product.id)} className="flex h-full w-11 items-center justify-center bg-[#07883F] text-xl text-white">+</button>
+                                                <button onClick={() => increaseQuantity(product._id)} className="flex h-full w-11 items-center justify-center bg-[#07883F] text-xl text-white">+</button>
                                             </div>
                                         )}
 

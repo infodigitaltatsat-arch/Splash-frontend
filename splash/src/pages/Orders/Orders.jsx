@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IoChevronBack, IoChevronForward } from "react-icons/io5";
-import { orderData } from "../../data/orderData";
+import { IoChevronBack } from "react-icons/io5";
 import BottomNav from "../../components/home/BottomNav";
+import { getMyOrders } from "../../api/orderApi";
 
 const filterOptions = [
   "All",
@@ -11,20 +11,60 @@ const filterOptions = [
   "Cancelled",
 ];
 
+const getStatusLabel = (status) => {
+  const labels = {
+    placed: "Placed",
+    confirmed: "Confirmed",
+    processing: "Processing",
+    out_for_delivery: "Out for delivery",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+  };
+
+  return labels[status] || status;
+};
+
+const matchesFilter = (order, filter) => {
+  if (filter === "All") {
+    return true;
+  }
+
+  if (filter === "Processing") {
+    return ["placed", "confirmed", "processing", "out_for_delivery"].includes(order.status);
+  }
+
+  return order.status === filter.toLowerCase();
+};
+
 const Orders = () => {
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await getMyOrders();
+        setOrders(response.data);
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+        setError(error.response?.data?.message || "Failed to load orders. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
   const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState("All");
 
   const filteredOrders = useMemo(() => {
-    if (activeFilter === "All") {
-      return orderData;
-    }
-
-    return orderData.filter(
-      (order) => order.status === activeFilter
-    );
-  }, [activeFilter]);
+    return orders.filter((order) => matchesFilter(order, activeFilter));
+  }, [orders, activeFilter]);
 
   return (
     <main className="min-h-screen bg-white">
@@ -68,7 +108,15 @@ const Orders = () => {
         {/* Orders */}
         <section className="space-y-4 px-4">
 
-          {filteredOrders.length === 0 ? (
+          {loading ? (
+            <div className="flex min-h-[50vh] items-center justify-center">
+              <p className="text-gray-500">Loading orders...</p>
+            </div>
+          ) : error ? (
+            <div className="flex min-h-[50vh] items-center justify-center">
+              <p className="text-center text-red-500">{error}</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="flex min-h-[50vh] items-center justify-center">
               <p className="text-gray-500">
                 No {activeFilter.toLowerCase()} orders found.
@@ -77,8 +125,18 @@ const Orders = () => {
           ) : (
             filteredOrders.map((order) => (
               <article
-                key={order.id}
-                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+                key={order._id}
+                role="link"
+                tabIndex={0}
+                aria-label={`Track order ${order._id.slice(-8).toUpperCase()}`}
+                onClick={() => navigate(`/orders/${order._id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(`/orders/${order._id}`);
+                  }
+                }}
+                className="cursor-pointer rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#07883F]"
               >
 
                 {/* Order Header */}
@@ -86,25 +144,25 @@ const Orders = () => {
 
                   <div>
                     <h2 className="text-[18px] font-bold">
-                      Order #{order.id}
+                      Order #{order._id.slice(-8).toUpperCase()}
                     </h2>
 
                     <p className="mt-1 text-[15px] text-gray-500">
-                      {order.date}
+                      {new Date(order.createdAt).toLocaleString()}
                     </p>
                   </div>
 
                   {/* Status */}
                   <span
                     className={`shrink-0 rounded-xl px-4 py-2 text-sm font-semibold ${
-                      order.status === "Processing"
+                      ["placed", "confirmed", "processing", "out_for_delivery"].includes(order.status)
                         ? "bg-orange-100 text-orange-500"
-                        : order.status === "Delivered"
+                        : order.status === "delivered"
                         ? "bg-green-100 text-[#07883F]"
                         : "bg-red-100 text-red-500"
                     }`}
                   >
-                    {order.status}
+                    {getStatusLabel(order.status)}
                   </span>
 
                 </div>
@@ -114,7 +172,7 @@ const Orders = () => {
 
                   {order.items.slice(0, 3).map((item, index) => (
                     <div
-                      key={`${order.id}-${index}`}
+                      key={`${order._id}-${index}`}
                       className="h-[92px] w-[92px] overflow-hidden rounded-2xl bg-gray-50"
                     >
                       <img
